@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC HPD Violations — The One-and-Done Myth</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    /* sequential blue ramp, ordinal-safe steps (light: 250→650) */
+    --step-1: #86b6ef;
+    --step-2: #5598e7;
+    --step-3: #2a78d6;
+    --step-4: #1c5cab;
+    --step-5: #104281;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      /* sequential blue ramp, ordinal-safe steps (dark: 200→600) */
+      --step-1: #9ec5f4;
+      --step-2: #6da7ec;
+      --step-3: #3987e5;
+      --step-4: #256abf;
+      --step-5: #184f95;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --step-1: #9ec5f4;
+    --step-2: #6da7ec;
+    --step-3: #3987e5;
+    --step-4: #256abf;
+    --step-5: #184f95;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 80px;
+  }
+  .eyebrow {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+  }
+  .hero-figure {
+    font-size: clamp(56px, 12vw, 96px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+  .hero-caption {
+    font-size: 19px;
+    color: var(--text-secondary);
+    max-width: 56ch;
+    line-height: 1.5;
+    margin: 0 0 48px;
+  }
+  .hero-caption strong { color: var(--text-primary); font-weight: 600; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 32px 24px;
+    margin-bottom: 32px;
+  }
+  .card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .card .subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0 0 28px;
+  }
+
+  .chart-wrap { overflow-x: auto; }
+  svg { display: block; width: 100%; height: auto; }
+  .bar { transition: opacity 0.1s ease; cursor: default; }
+  .bar:hover { opacity: 0.85; }
+  .bar-label {
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text-primary);
+    text-anchor: middle;
+  }
+  .axis-label {
+    font-size: 12px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+  }
+  .axis-sublabel {
+    font-size: 11px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+  }
+  .axis-title {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--text-secondary);
+    text-anchor: middle;
+  }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+
+  .stat-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .stat-tile {
+    flex: 1 1 200px;
+  }
+  .stat-tile .value {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .stat-tile .label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .callout {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--step-4);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+  }
+  .callout-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .callout p {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin: 0;
+  }
+  .callout strong { font-weight: 700; }
+
+  .source-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    text-align: right;
+  }
+
+  .table-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 20px;
+    font-family: inherit;
+  }
+  .table-toggle:hover { color: var(--text-primary); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 13px;
+    display: none;
+  }
+  table.visible { display: table; }
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  td:not(:first-child), th:not(:first-child) { text-align: right; }
+
+  @media (max-width: 520px) {
+    .page { padding: 40px 16px 60px; }
+    .card { padding: 24px 16px 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">NYC HPD Violations · Full record, 1959–2026</div>
+  <div class="hero-figure">85%</div>
+  <p class="hero-caption">
+    of the <strong>168,328 NYC buildings</strong> with an HPD violation on record
+    have had <strong>more than one</strong>. Only 15% have just a single violation on file, ever —
+    recurring violations are the norm, not the exception.
+  </p>
+
+  <div class="card">
+    <h2>How many violations does a building actually rack up?</h2>
+    <p class="subtitle">Share of all 168,328 violated buildings, by total violation count across the entire record on file for each building</p>
+
+    <div class="chart-wrap">
+      <svg id="chart" viewBox="0 0 680 360" role="img" aria-label="Bar chart showing the percentage of NYC buildings by total number of HPD violations on record: 15.0% with 1 violation, 26.9% with 2 to 5, 19.3% with 6 to 10, 17.7% with 11 to 20, and 21.1% with 21 or more.">
+        <title>Buildings by total violation count on record</title>
+      </svg>
+    </div>
+
+    <button class="table-toggle" id="toggleTable" aria-expanded="false">View as table</button>
+    <table id="dataTable">
+      <thead>
+        <tr><th>Violations on record</th><th>Buildings</th><th>Share</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>25,320</td><td>15.0%</td></tr>
+        <tr><td>2–5</td><td>45,197</td><td>26.9%</td></tr>
+        <tr><td>6–10</td><td>32,558</td><td>19.3%</td></tr>
+        <tr><td>11–20</td><td>29,773</td><td>17.7%</td></tr>
+        <tr><td>21+</td><td>35,480</td><td>21.1%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="value">58%</div>
+        <div class="label">of buildings have racked up 6 or more violations over their full record — more than half.</div>
+      </div>
+      <div class="stat-tile">
+        <div class="value">21%</div>
+        <div class="label">have had 21 or more violations over their full record — the single largest bucket in the whole distribution.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-label">Why this matters</div>
+    <p>
+      This was a tested hypothesis, not an assumption: the original prediction was that most buildings
+      resolve their one violation and stay clean, with only a small minority becoming repeat offenders.
+      The data shows the opposite — <strong>chronic, recurring violations are the typical outcome</strong>
+      for a building that appears in the HPD violations record at all, looking at each building's
+      complete violation history rather than any single time window.
+    </p>
+  </div>
+
+  <p class="source-note">
+    Source: NYC Department of Housing Preservation &amp; Development (HPD) Violations dataset
+    (<code>csn4-vhvf</code>), grouped by building ID across all violation classes and the full available
+    record, 1959–2026.
+  </p>
+
+</div>
+
+<script>
+(function () {
+  const data = [
+    { label: "1",      pct: 15.0, n: 25320 },
+    { label: "2–5",    pct: 26.9, n: 45197 },
+    { label: "6–10",   pct: 19.3, n: 32558 },
+    { label: "11–20",  pct: 17.7, n: 29773 },
+    { label: "21+",    pct: 21.1, n: 35480 },
+  ];
+  const colors = ["var(--step-1)", "var(--step-2)", "var(--step-3)", "var(--step-4)", "var(--step-5)"];
+
+  const svg = document.getElementById("chart");
+  const W = 680, H = 360;
+  const marginTop = 30, marginBottom = 76, marginLeft = 40, marginRight = 20;
+  const plotW = W - marginLeft - marginRight;
+  const plotH = H - marginTop - marginBottom;
+  const baselineY = marginTop + plotH;
+
+  const maxPct = 30; // clean round scale
+  const bandW = plotW / data.length;
+  const barW = 24;
+
+  const ns = "http://www.w3.org/2000/svg";
+  function el(tag, attrs) {
+    const e = document.createElementNS(ns, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // gridlines at 0/10/20/30%
+  [0, 10, 20, 30].forEach(function (gv) {
+    const y = baselineY - (gv / maxPct) * plotH;
+    const line = el("line", {
+      x1: marginLeft, x2: W - marginRight, y1: y, y2: y,
+      class: gv === 0 ? "baseline" : "gridline"
+    });
+    svg.appendChild(line);
+    const lbl = el("text", { x: marginLeft - 6, y: y + 4, class: "axis-sublabel", "text-anchor": "end" });
+    lbl.textContent = gv + "%";
+    svg.appendChild(lbl);
+  });
+
+  data.forEach(function (d, i) {
+    const cx = marginLeft + bandW * i + bandW / 2;
+    const barH = (d.pct / maxPct) * plotH;
+    const y = baselineY - barH;
+
+    const rect = el("path", {
+      d: roundedBarPath(cx - barW / 2, y, barW, barH, 4),
+      class: "bar"
+    });
+    rect.style.fill = colors[i];
+    const tip = el("title", {});
+    tip.textContent = d.n.toLocaleString() + " buildings (" + d.pct.toFixed(1) + "%) with " + d.label + " violation" + (d.label === "1" ? "" : "s") + " on record";
+    rect.appendChild(tip);
+    svg.appendChild(rect);
+
+    const valueLabel = el("text", { x: cx, y: y - 10, class: "bar-label" });
+    valueLabel.textContent = d.pct.toFixed(1) + "%";
+    svg.appendChild(valueLabel);
+
+    const axisLabel = el("text", { x: cx, y: baselineY + 22, class: "axis-label" });
+    axisLabel.textContent = d.label;
+    svg.appendChild(axisLabel);
+  });
+
+  const axisTitle = el("text", { x: marginLeft + plotW / 2, y: baselineY + 50, class: "axis-title" });
+  axisTitle.textContent = "Total violations per building, full record";
+  svg.appendChild(axisTitle);
+
+  function roundedBarPath(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h);
+    return [
+      "M", x, y + h,
+      "L", x, y + r,
+      "Q", x, y, x + r, y,
+      "L", x + w - r, y,
+      "Q", x + w, y, x + w, y + r,
+      "L", x + w, y + h,
+      "Z"
+    ].join(" ");
+  }
+
+  const toggleBtn = document.getElementById("toggleTable");
+  const table = document.getElementById("dataTable");
+  toggleBtn.addEventListener("click", function () {
+    const isVisible = table.classList.toggle("visible");
+    toggleBtn.setAttribute("aria-expanded", isVisible);
+    toggleBtn.textContent = isVisible ? "Hide table" : "View as table";
+  });
+})();
+</script>
+
+</body>
+</html>
